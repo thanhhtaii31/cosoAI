@@ -52,17 +52,19 @@ class RegressionModel(Module):
     def __init__(self):
         # Initialize your model parameters here
         super().__init__()
-        hidden_size = 100
-        self.w1 = Parameter(torch.rand(1, hidden_size))
-        self.b1 = Parameter(torch.zeros(1, hidden_size))
+        hidden_size_layer_1 = 400
+        hidden_size_layer_2 = 500
 
-        self.w2 = Parameter(torch.rand(hidden_size, 1))
-        self.b2 = Parameter(torch.zeros(1, 1))
+        self.layer_1 = Linear(1, hidden_size_layer_1)        #Parameter(torch.rand(1, hidden_size_layer_1))
+
+        self.layer_2 = Linear(hidden_size_layer_1, hidden_size_layer_2)
+
+        self.layer_3 = Linear(hidden_size_layer_2,1)
 
     def forward(self, x):
-        hidden = relu(matmul(x, self.w1) + self.b1)
-        output = matmul(hidden, self.w2) + self.b2
-        return output
+        hidden_1 = relu(self.layer_1(x))
+        hidden_2 = relu(self.layer_2(hidden_1))
+        return self.layer_3(hidden_2)
 
     def get_loss(self, x, y):
         y_predicted = self.forward(x)
@@ -70,10 +72,10 @@ class RegressionModel(Module):
         return loss
 
     def train(self, dataset):
-        BATCH_SIZE = 200
+        BATCH_SIZE = 20
         EPOCHS = 1000
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-        optimizer = optim.Adam(self.parameters(), 0.01)
+        optimizer = optim.Adam(self.parameters(), 0.005)
         for EPOCH in range(EPOCHS):
             for batch in dataloader:
                 x = batch['x']
@@ -93,16 +95,17 @@ class DigitClassificationModel(Module):
         output_size = 10
         hidden_size = 200
 
-        self.w1 = Parameter(torch.rand(input_size, hidden_size))
-        self.b1 = Parameter(torch.zeros(1, hidden_size))
+        self.hidden_1 = Linear(input_size, hidden_size)
+        # self.w1 = Parameter(torch.rand(input_size, hidden_size))
+        # self.b1 = Parameter(torch.zeros(1, hidden_size))
 
-        self.w2 = Parameter(torch.rand(hidden_size, output_size))
-        self.b2 = Parameter(torch.zeros(1, output_size))
+        self.hidden_2 = Linear(hidden_size, output_size)
+        # self.w2 = Parameter(torch.rand(hidden_size, output_size))
+        # self.b2 = Parameter(torch.zeros(1, output_size))
 
     def run(self, x):
-        hidden_layer = relu(matmul(x, self.w1) + self.b1)
-        output_layer = matmul(hidden_layer, self.w2) + self.b2
-        return output_layer
+        hidden_layer_1 = relu(self.hidden_1(x))
+        return self.hidden_2(hidden_layer_1)
 
     def get_loss(self, x, y):
         y_predicted = self.run(x)
@@ -126,27 +129,28 @@ class DigitClassificationModel(Module):
 
 class LanguageIDModel(Module):
     def __init__(self):
-        self.num_chars = 300
+        self.num_chars = 47
         self.languages = ["English", "Spanish", "Finnish", "Dutch", "Polish"]
         super(LanguageIDModel, self).__init__()
         hidden_size = 300
 
-        self.w1 = Parameter(torch.rand(self.num_chars, hidden_size))
-        self.b1 = Parameter(torch.zeros(1, self.hidden_size))
+        self.hidden_1 = Linear(self.num_chars, hidden_size)
+        # self.w1 = Parameter(torch.rand(self.num_chars, hidden_size))
+        # self.b1 = Parameter(torch.zeros(1, self.hidden_size))
+        self.hidden_2 = Linear(hidden_size, len(self.languages))
+        # self.w2 = Parameter(torch.rand(hidden_size, len(self.languages)))
+        # self.b2 = Parameter(torch.zeros(1, len(self.languages)))
 
-        self.w2 = Parameter(torch.rand(hidden_size, len(self.languages)))
-        self.b2 = Parameter(torch.zeros(1, len(self.languages)))
-
-        self.w_hidden = Parameter(torch.rand(hidden_size, hidden_size))
+        self.hidden = Linear(hidden_size, hidden_size)
 
     def run(self, xs):
         batch_size = xs.shape[1]
-        hidden_size = 300
+        hidden_size = self.hidden_1.out_features
 
         hidden_state = torch.zeros(batch_size, hidden_size)
         for x in xs:
-            hidden_state = relu(matmul(x, self.w1) + matmul(hidden_state, self.w_hidden) + self.b1)
-        scores = matmul(hidden_state, self.w2) + self.b2
+            hidden_state = relu(self.hidden_1(x) + self.hidden(hidden_state))
+        scores = self.hidden_2(hidden_state)
         return scores
 
     def get_loss(self, xs, y):
