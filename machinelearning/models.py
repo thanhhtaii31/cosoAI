@@ -55,11 +55,11 @@ class RegressionModel(Module):
         hidden_size_layer_1 = 400
         hidden_size_layer_2 = 500
 
-        self.layer_1 = Linear(1, hidden_size_layer_1)        #Parameter(torch.rand(1, hidden_size_layer_1))
+        self.layer_1 = Linear(1, hidden_size_layer_1)  # Parameter(torch.rand(1, hidden_size_layer_1))
 
         self.layer_2 = Linear(hidden_size_layer_1, hidden_size_layer_2)
 
-        self.layer_3 = Linear(hidden_size_layer_2,1)
+        self.layer_3 = Linear(hidden_size_layer_2, 1)
 
     def forward(self, x):
         hidden_1 = relu(self.layer_1(x))
@@ -182,15 +182,17 @@ def Convolve(input: tensor, weight: tensor):
 
     output_height = input_tensor_dimensions[0] - weight_dimensions[0] + 1
     output_width = input_tensor_dimensions[1] - weight_dimensions[1] + 1
-    Output_Tensor = torch.zeros(output_height, output_width)
 
+    rows = []
     for i in range(output_height):
+        col_result = []
         for j in range(output_width):
-            result = 0
-            for m in range(weight_dimensions[0]):
-                for n in range(weight_dimensions[1]):
-                    result += input[i + m][j + n] * weight[m][n]
-            Output_Tensor[i, j] = result
+            slicing = input[i: i + weight_dimensions[0], j: j + weight_dimensions[1]]
+            result = (slicing * weight).sum()
+            col_result.append(result)
+        rows.append(torch.stack(col_result))
+    Output_Tensor = torch.stack(rows)
+
     return Output_Tensor
 
 
@@ -201,11 +203,9 @@ class DigitConvolutionalModel(Module):
         super().__init__()
         output_size = 10
 
-        self.convolution_weights = Parameter(ones((3, 3)))
+        self.convolution_weights = Parameter(torch.randn((3, 3)))
 
-        self.W = Parameter(torch.rand(26 * 26, 10))
-
-        self.b = Parameter(torch.zeros(1, output_size))
+        self.hidden_layer = Linear(26 * 26, 10)
 
     def run(self, x):
         return self(x)
@@ -215,18 +215,17 @@ class DigitConvolutionalModel(Module):
         x = stack(list(map(lambda sample: Convolve(sample, self.convolution_weights), x)))
         x = x.flatten(start_dim=1)
         x = relu(x)
-        x = matmul(x, self.W) + self.b
+        x = self.hidden_layer(x)
         return x
 
     def get_loss(self, x, y):
         x_predicted = self.run(x)
-        y_label = torch.argmax(y, dim=1)
-        loss = cross_entropy(x_predicted, y_label)
+        loss = cross_entropy(x_predicted, y)
         return loss
 
     def train(self, dataset):
-        BATCH_SIZE = 5
-        EPOCHS = 3
+        BATCH_SIZE = 100
+        EPOCHS = 20
 
         optimizer = optim.Adam(self.parameters(), lr=0.005)
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
