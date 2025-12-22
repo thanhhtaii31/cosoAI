@@ -32,9 +32,7 @@ class PerceptronModel(Module):
             return -1
 
     def train(self, dataset):
-        with no_grad():
             dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-            "*** YOUR CODE HERE ***"
             flag = False
             while flag == False:
                 flag = True
@@ -50,40 +48,55 @@ class PerceptronModel(Module):
 
 class RegressionModel(Module):
     def __init__(self):
-        # Initialize your model parameters here
         super().__init__()
-        hidden_size_layer_1 = 400
-        hidden_size_layer_2 = 500
+        hidden_size_layer = 100
+        # Ví dụ: hidden_size_layer = 3
+        self.layer_1 = Linear(1, hidden_size_layer) 
+        # Bên trong layer_1 có W_1 = [[w1], [w2], [w3]] và b1 = [b1, b2, b3]
+        # layer_1 = Linear(1, 3)
+        # Tương đương với 
+            # h1 = x*w1 + b1
+            # h2 = x*w2 + b2
+            # h3 = x*w3 + b3
 
-        self.layer_1 = Linear(1, hidden_size_layer_1)  # Parameter(torch.rand(1, hidden_size_layer_1))
-
-        self.layer_2 = Linear(hidden_size_layer_1, hidden_size_layer_2)
-
-        self.layer_3 = Linear(hidden_size_layer_2, 1)
+        self.layer_2 = Linear(hidden_size_layer, 1)
+        # Bên trong layer_2 có W_2 = [[wa, wb, wc]] và b2 = [b4]
+        # layer_2 = Linear(3, 1)
+        # Tương đương với
+        # y_predicted = h1*wa + h2*wb + h3*wc + b4
 
     def forward(self, x):
-        hidden_1 = relu(self.layer_1(x))
-        hidden_2 = relu(self.layer_2(hidden_1))
-        return self.layer_3(hidden_2)
+        # Minh hoạ: h = layer_1(x) -> h = ReLU(h) -> y_predicted = layer_2(h)
+        # ReLU: Giá trị âm chuyển thành 0, giá trị dương giữ nguyên
+        h = self.layer_1(x)
+        h = torch.relu(h)
+        y_predicted = self.layer_2(h)
+        return y_predicted
 
     def get_loss(self, x, y):
         y_predicted = self.forward(x)
         loss = mse_loss(y_predicted, y)
+        # Maybe hàm này trả về theo công thức: loss = mean((y_predicted - y)^2)
         return loss
 
+    # 1. forward   → tính ŷ
+    # 2. loss      → đo sai lệch
+    # 3. backward  → tính độ thay đổi để sửa
+    # 4. optimizer → cập nhập trọng số
+    # 5. lặp lại 1000 lần
     def train(self, dataset):
         BATCH_SIZE = 20
         EPOCHS = 1000
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-        optimizer = optim.Adam(self.parameters(), 0.005)
+        optimizer = optim.Adam(self.parameters(), 0.005) # Khởi tạo với learning rate = 0.005
         for EPOCH in range(EPOCHS):
             for batch in dataloader:
                 x = batch['x']
                 y = batch['label']
-                optimizer.zero_grad()
+                optimizer.zero_grad()   # xóa gradient cũ
                 loss = self.get_loss(x, y)
-                loss.backward()
-                optimizer.step()
+                loss.backward()         # tính gradient mới 
+                optimizer.step()        # cập nhật trọng số tức W = W - 0.005*gradient_mới
 
 
 class DigitClassificationModel(Module):
