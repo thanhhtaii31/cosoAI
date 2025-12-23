@@ -148,11 +148,8 @@ class LanguageIDModel(Module):
         hidden_size = 300
 
         self.hidden_1 = Linear(self.num_chars, hidden_size)
-        # self.w1 = Parameter(torch.rand(self.num_chars, hidden_size))
-        # self.b1 = Parameter(torch.zeros(1, self.hidden_size))
+
         self.hidden_2 = Linear(hidden_size, len(self.languages))
-        # self.w2 = Parameter(torch.rand(hidden_size, len(self.languages)))
-        # self.b2 = Parameter(torch.zeros(1, len(self.languages)))
 
         self.hidden = Linear(hidden_size, hidden_size)
 
@@ -216,7 +213,7 @@ class DigitConvolutionalModel(Module):
         super().__init__()
         output_size = 10
 
-        self.convolution_weights = Parameter(torch.randn((3, 3)))
+        self.convolution_weights = Parameter(ones((3, 3)))
 
         self.hidden_layer = Linear(26 * 26, 10)
 
@@ -273,18 +270,24 @@ class Attention(Module):
         self.layer_size = layer_size
 
     def forward(self, input):
-        """
-        Applies the attention mechanism to input. All necessary layers have 
-        been defined in __init__()
 
-        In order to apply the causal mask to a given matrix M, you should update
-        it as such:
-    
-        M = M.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))[0]
-
-        For the softmax activation, it should be applied to the last dimension of the input,
-        Take a look at the "dim" argument of torch.nn.functional.softmax to figure out how to do this.
-        """
         B, T, C = input.size()
 
         """YOUR CODE HERE"""
+        k = self.k_layer(input)
+        q = self.q_layer(input)
+        v = self.v_layer(input)
+
+        q_transpose = q.transpose(1,2)
+
+        score = matmul(k,q_transpose)
+
+        score = score/(self.layer_size **0.5)
+
+        score =score.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))
+
+        weight = softmax(score, dim = -1)
+
+        final = matmul(weight, v)
+
+        return final
