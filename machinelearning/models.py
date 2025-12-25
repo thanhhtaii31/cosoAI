@@ -10,7 +10,7 @@ from torch import optim, tensor, tensordot, ones, matmul
 from torch.nn.functional import cross_entropy, relu, mse_loss, softmax
 from torch import movedim
 
-
+# ===== Q1 =====
 class PerceptronModel(Module):
     def __init__(self, dimensions):
         super(PerceptronModel, self).__init__()
@@ -45,7 +45,7 @@ class PerceptronModel(Module):
                         with torch.no_grad():
                             self.w.data += x * y
 
-
+# ===== Q2 =====
 class RegressionModel(Module):
     def __init__(self):
         super().__init__()
@@ -98,23 +98,27 @@ class RegressionModel(Module):
                 loss.backward()         # tính gradient mới 
                 optimizer.step()        # cập nhật trọng số tức W = W - 0.005*gradient_mới
 
-
+# ===== Q3 =====
 class DigitClassificationModel(Module):
-
     def __init__(self):
-        # Initialize your model parameters here
         super().__init__()
-        input_size = 28 * 28
-        output_size = 10
+        input_size = 28 * 28 # Đã được flatten thành vector 784 chiều
         hidden_size = 200
+        output_size = 10
 
-        self.hidden_1 = Linear(input_size, hidden_size)
-        # self.w1 = Parameter(torch.rand(input_size, hidden_size))
-        # self.b1 = Parameter(torch.zeros(1, hidden_size))
-
-        self.hidden_2 = Linear(hidden_size, output_size)
-        # self.w2 = Parameter(torch.rand(hidden_size, output_size))
-        # self.b2 = Parameter(torch.zeros(1, output_size))
+        self.hidden_1 = Linear(input_size, hidden_size) # Linear(784, 200)
+        # Tương đương với
+        # h1 = w1,1 * x1 + w1,2 * x2 + ... + w1,784 * x784 + b1
+        # h2 = w2,1 * x1 + w2,2 * x2 + ... + w2,784 * x784 + b2
+        # ...
+        # h200 = w200,1 * x1 + w200,2 * x2 + ... + w200,784 * x784 + b200
+        
+        self.hidden_2 = Linear(hidden_size, output_size) # Linear(200, 10)
+        # Tương đương với 
+        # y1 = w1,1 * h1 + w1,2 * h2 + ... + w1,200 * h200 + c1
+        # y2 = w2,1 * h1 + w2,2 * h2 + ... + w2,200 * x200 + c2
+        # ...
+        # y10 = w10,1 * h1 + w10,2 * h2 + ... + w10,200 * x200 + c200
 
     def run(self, x):
         hidden_layer_1 = relu(self.hidden_1(x))
@@ -139,7 +143,7 @@ class DigitClassificationModel(Module):
                 loss.backward()
                 optimizer.step()
 
-
+# ===== Q4 =====
 class LanguageIDModel(Module):
     def __init__(self):
         self.num_chars = 47
@@ -165,8 +169,8 @@ class LanguageIDModel(Module):
 
     def get_loss(self, xs, y):
         scores = self.run(xs)
-        y_labels = torch.argmax(y, dim=1)
-        loss = cross_entropy(scores, y_labels)
+        y_labels = torch.argmax(y, dim=1) # Tìm giá trị lớn nhất trong one-hot vector
+        loss = cross_entropy(scores, y_labels) # −log(p_đúng​)
         return loss
 
     def train(self, dataset):
@@ -184,7 +188,7 @@ class LanguageIDModel(Module):
                 loss.backward()
                 optimizer.step()
 
-
+# ===== Q5 =====
 def Convolve(input: tensor, weight: tensor):
     input_tensor_dimensions = input.shape
     weight_dimensions = weight.shape
@@ -205,11 +209,8 @@ def Convolve(input: tensor, weight: tensor):
 
     return Output_Tensor
 
-
 class DigitConvolutionalModel(Module):
-
     def __init__(self):
-        # Initialize your model parameters here
         super().__init__()
         output_size = 10
 
@@ -249,16 +250,10 @@ class DigitConvolutionalModel(Module):
                 loss.backward()
                 optimizer.step()
 
-
+# ===== Q6 =====
 class Attention(Module):
     def __init__(self, layer_size, block_size):
         super().__init__()
-        """
-        All the layers you should use are defined here.
-
-        In order to pass the autograder, make sure each linear layer matches up with their corresponding matrix,
-        ie: use self.k_layer to generate the K matrix.
-        """
         self.k_layer = Linear(layer_size, layer_size)
         self.q_layer = Linear(layer_size, layer_size)
         self.v_layer = Linear(layer_size, layer_size)
@@ -273,7 +268,6 @@ class Attention(Module):
 
         B, T, C = input.size()
 
-        """YOUR CODE HERE"""
         k = self.k_layer(input)
         q = self.q_layer(input)
         v = self.v_layer(input)
