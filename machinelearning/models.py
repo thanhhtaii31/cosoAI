@@ -226,6 +226,57 @@ def Convolve(input: tensor, weight: tensor):
 
     return Output_Tensor
 
+class DigitConvolutionalModel(Module):
+    def __init__(self):
+        super().__init__()
+        output_size = 10
+
+        # Trọng số kernel 3x3 (được học) khởi tạo bằng 1
+        self.convolution_weights = Parameter(ones((3, 3)))
+
+        # Sau convolution (26x26) flatten -> 26*26, ánh xạ về 10 lớp
+        self.hidden_layer = Linear(26 * 26, 10)
+
+    def run(self, x):
+        # run gọi forward (có thể viết trực tiếp return self.forward(x))
+        return self(x)
+
+    def forward(self, x):
+        # x có dạng (batch, 28*28) -> reshape về (batch, 28, 28)
+        x = x.reshape(len(x), 28, 28)
+        # Áp dụng convolution thủ công cho từng sample trong batch
+        x = stack(list(map(lambda sample: Convolve(sample, self.convolution_weights), x)))
+        # Flatten lại per-sample
+        x = x.flatten(start_dim=1)
+        # Áp dụng activation function
+        x = relu(x)
+        # Ánh xạ về 10 lớp
+        x = self.hidden_layer(x)
+        return x
+
+    def get_loss(self, x, y):
+        # Tính logits và so sánh với nhãn ground-truth
+        x_predicted = self.run(x)
+        loss = cross_entropy(x_predicted, y)
+        return loss
+
+    def train(self, dataset):
+        # Huấn luyện CNN với batch lớn và số epoch ít (vì convolution tính toán nặng)
+        BATCH_SIZE = 100
+        EPOCHS = 20
+
+        optimizer = optim.Adam(self.parameters(), lr=0.005)
+        dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
+
+        for EPOCH in range(EPOCHS):
+            for batch in dataloader:
+                x = batch['x']
+                y = batch['label']
+                optimizer.zero_grad()
+                loss = self.get_loss(x, y)
+                loss.backward()
+                optimizer.step()
+
 # ===== Q6 =====
 class Attention(Module):
     def __init__(self, layer_size, block_size):
