@@ -14,13 +14,13 @@ from torch import movedim
 class PerceptronModel(Module):
     def __init__(self, dimensions):
         super(PerceptronModel, self).__init__()
-        self.w = Parameter(torch.ones(1, dimensions))
+        self.w = Parameter(torch.ones(1, dimensions)) # Khởi tạo vector trọng số w với kích thước (1, dimensions)
 
     def get_weights(self):
         return self.w
 
     def run(self, x):
-        score = torch.tensordot(x, self.w, dims=([1], [1]))
+        score = torch.tensordot(x, self.w, dims=([1], [1])) # Tính tích vô hướng giữa x và w
         return score
 
     def get_prediction(self, x):
@@ -76,13 +76,13 @@ class RegressionModel(Module):
     def get_loss(self, x, y):
         y_predicted = self.forward(x)
         loss = mse_loss(y_predicted, y)
-        # Maybe hàm này trả về theo công thức: loss = mean((y_predicted - y)^2)
+        # Hàm này trả về theo công thức: loss = mean((y_predicted - y)^2)
         return loss
 
-    # 1. forward   → tính ŷ
-    # 2. loss      → đo sai lệch
-    # 3. backward  → tính độ thay đổi để sửa
-    # 4. optimizer → cập nhập trọng số
+    # 1. forward   -> tính ŷ
+    # 2. loss      -> đo sai lệch
+    # 3. backward  -> tính độ thay đổi để sửa
+    # 4. optimizer -> cập nhập trọng số
     # 5. lặp lại 1000 lần
     def train(self, dataset):
         BATCH_SIZE = 20
@@ -121,12 +121,12 @@ class DigitClassificationModel(Module):
         # y10 = w10,1 * h1 + w10,2 * h2 + ... + w10,200 * x200 + c200
 
     def run(self, x):
-        hidden_layer_1 = relu(self.hidden_1(x))
+        hidden_layer_1 = relu(self.hidden_1(x)) 
         return self.hidden_2(hidden_layer_1)
 
     def get_loss(self, x, y):
-        y_predicted = self.run(x)
-        loss = cross_entropy(y_predicted, y)
+        y_predicted = self.run(x) # y_predicted là scores hoặc logits (số thô)
+        loss = cross_entropy(y_predicted, y) # loss = −log(p_đúng​)
         return loss
 
     def train(self, dataset):
@@ -146,34 +146,45 @@ class DigitClassificationModel(Module):
 # ===== Q4 =====
 class LanguageIDModel(Module):
     def __init__(self):
+        # num_chars: số ký tự trong encoding (47), languages: danh sách ngôn ngữ
         self.num_chars = 47
         self.languages = ["English", "Spanish", "Finnish", "Dutch", "Polish"]
         super(LanguageIDModel, self).__init__()
         hidden_size = 300
 
+        # Lớp nhận input ký tự -> hidden
         self.hidden_1 = Linear(self.num_chars, hidden_size)
 
+        # Lớp cuối: hidden -> số lớp ngôn ngữ
         self.hidden_2 = Linear(hidden_size, len(self.languages))
 
+        # Một lớp chuyển trạng thái ẩn -> ẩn (giúp tính recurrent)
         self.hidden = Linear(hidden_size, hidden_size)
 
     def run(self, xs):
+        # xs có dạng (sequence_length, batch_size, num_chars)
         batch_size = xs.shape[1]
         hidden_size = self.hidden_1.out_features
 
+        # Khởi tạo trạng thái ẩn cho batch
         hidden_state = torch.zeros(batch_size, hidden_size)
+        # Lặp qua từng bước thời gian (từng ký tự trong chuỗi)
         for x in xs:
+            # hidden_state = ReLU(hidden_1(x) + hidden(hidden_state))
             hidden_state = relu(self.hidden_1(x) + self.hidden(hidden_state))
+        # Sau khi xử lý toàn bộ chuỗi, ánh xạ về scores cho từng ngôn ngữ
         scores = self.hidden_2(hidden_state)
         return scores
 
     def get_loss(self, xs, y):
+        # y có thể là one-hot; torch.argmax chuyển về chỉ số lớp
         scores = self.run(xs)
         y_labels = torch.argmax(y, dim=1) # Tìm giá trị lớn nhất trong one-hot vector
         loss = cross_entropy(scores, y_labels) # −log(p_đúng​)
         return loss
 
     def train(self, dataset):
+        # Huấn luyện: đưa batch về dạng (seq_len, batch, chars) bằng movedim
         EPOCHS = 30
         BATCH_SIZE = 30
         dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
@@ -182,6 +193,7 @@ class LanguageIDModel(Module):
             for batch in dataloader:
                 x = batch['x']
                 y = batch['label']
+                # movedim đổi kích thước để bước thời gian ở dim0
                 x_move = movedim(x, 0, 1)
                 optimizer.zero_grad()
                 loss = self.get_loss(x_move, y)
@@ -189,11 +201,14 @@ class LanguageIDModel(Module):
                 optimizer.step()
 
 # ===== Q5 =====
+# Convolve: hàm convolution 2D thủ công (không dùng torch.nn.Conv2d)
 def Convolve(input: tensor, weight: tensor):
+    # input: ảnh 2D (height, width), weight: kernel 2D
     input_tensor_dimensions = input.shape
     weight_dimensions = weight.shape
     Output_Tensor = tensor(())
 
+    # Kích thước output = input - kernel + 1 (valid convolution)
     output_height = input_tensor_dimensions[0] - weight_dimensions[0] + 1
     output_width = input_tensor_dimensions[1] - weight_dimensions[1] + 1
 
@@ -201,54 +216,15 @@ def Convolve(input: tensor, weight: tensor):
     for i in range(output_height):
         col_result = []
         for j in range(output_width):
+            # Lấy miếng con của ảnh tương ứng kernel
             slicing = input[i: i + weight_dimensions[0], j: j + weight_dimensions[1]]
+            # Nhân element-wise rồi cộng tất cả (dot product)
             result = (slicing * weight).sum()
             col_result.append(result)
         rows.append(torch.stack(col_result))
     Output_Tensor = torch.stack(rows)
 
     return Output_Tensor
-
-class DigitConvolutionalModel(Module):
-    def __init__(self):
-        super().__init__()
-        output_size = 10
-
-        self.convolution_weights = Parameter(ones((3, 3)))
-
-        self.hidden_layer = Linear(26 * 26, 10)
-
-    def run(self, x):
-        return self(x)
-
-    def forward(self, x):
-        x = x.reshape(len(x), 28, 28)
-        x = stack(list(map(lambda sample: Convolve(sample, self.convolution_weights), x)))
-        x = x.flatten(start_dim=1)
-        x = relu(x)
-        x = self.hidden_layer(x)
-        return x
-
-    def get_loss(self, x, y):
-        x_predicted = self.run(x)
-        loss = cross_entropy(x_predicted, y)
-        return loss
-
-    def train(self, dataset):
-        BATCH_SIZE = 100
-        EPOCHS = 20
-
-        optimizer = optim.Adam(self.parameters(), lr=0.005)
-        dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
-
-        for EPOCH in range(EPOCHS):
-            for batch in dataloader:
-                x = batch['x']
-                y = batch['label']
-                optimizer.zero_grad()
-                loss = self.get_loss(x, y)
-                loss.backward()
-                optimizer.step()
 
 # ===== Q6 =====
 class Attention(Module):
