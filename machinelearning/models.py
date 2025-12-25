@@ -230,34 +230,59 @@ def Convolve(input: tensor, weight: tensor):
 class Attention(Module):
     def __init__(self, layer_size, block_size):
         super().__init__()
+
+        # Lớp k layer, đại diện cho thông số key, là nhãn mô tả
         self.k_layer = Linear(layer_size, layer_size)
+        # Lớp k layer, đại diện cho thông số query, đi tìm các k ph hợp với từ
         self.q_layer = Linear(layer_size, layer_size)
+        # lớp v layer, đại diện cho thông số value, là nội dung của từ đấy
+        # Nếu q và k khớp nhau, mô hình sẽ lấy thông tin từ v, còn không khớp thì bỏ qua
         self.v_layer = Linear(layer_size, layer_size)
 
         # Masking part of attention layer
+        # Tạo 1 buffer để lưu trạng thái của mô hình mà không học. Không tính đạo hàm
+        # Tạo 1 ma trận tam giác dưới từ hàm torch.tril để đảm bảo hàng 1 chỉ nhìn thấy nó
+        # Hàng 2 chỉ nhìn thấy từ thứ 1, và 2, hàng 3 thì có thể thay cả 3 từ
         self.register_buffer("mask", torch.tril(torch.ones(block_size, block_size))
                              .view(1, 1, block_size, block_size))
-
+        # Lấy kích thước của layer
         self.layer_size = layer_size
 
     def forward(self, input):
-
+        # Trích xuất cấu trúc của dữ liệu đầu vào
+        # B là batch size: kích thước lô
+        # T là time steps: Chiều dài của chuỗi
+        # C là chanel: Số kênh đặc trưng
         B, T, C = input.size()
 
+        # tạo ma trận k đại diện cho vai trò nhãn
         k = self.k_layer(input)
+        # Tạo ma trận q đại diện cho vai trò query
         q = self.q_layer(input)
+        # Tạo ma trận v đại diện cho vai trò value
         v = self.v_layer(input)
 
+        # thục hiện phép chuyển vị bằng hàm transpose
         q_transpose = q.transpose(1,2)
 
+        # Giá trị score theo công thức = tích vô hướng ma trận chuyển vị q và k
         score = matmul(k,q_transpose)
 
+        # Scaling score về giá trị thấp hơn nhằm đảm bảo số không quá to khi tính toán
         score = score/(self.layer_size **0.5)
 
+        # Sử dụng masked_fill, ma trân self.mask ( ma trận tam giác dưới) sẽ che các ô tương lai
+        # Những ô trong mask có giá trị bằng 0 sẽ bị gán bằng - vô cùng
+        # Tức là khi tính xác suất, mô hình tại thời điểm t sẽ không thể thấy mô hình ở thời điểm t+1
         score =score.masked_fill(self.mask[:,:,:T,:T] == 0, float('-inf'))
 
+        # Hàm Softmax được áp dụng trên chiều cuối cùng để chuyển đổi các điểm số thành xác suất
+        #
         weight = softmax(score, dim = -1)
 
+        # lấy trọng số nhân với ma trận Value
+        # Mỗi vector tại vị trí $t$ không còn đơn thuần là vector của chính nó,
+        # mà là một vector ngữ cảnh đã được tổng hợp thông tin từ những từ quan trọng nhất đứng trước nó
         final = matmul(weight, v)
 
         return final
